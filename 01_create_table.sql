@@ -2,37 +2,12 @@ USE [COSTO_LABOR];
 GO
 
 /* =========================================================================
-   0. LIMPIEZA PREVIA DE OBJETOS EXISTENTES (Orden por dependencias FK)
+   0. Este script es aditivo: cada objeto se crea solo si no existe, para
+      poder re-ejecutarlo sin perder informacion.
+
+      El borrado de tablas vive en _reset_objetos.sql, fuera de la
+      secuencia numerada, porque destruye los datos existentes.
    ========================================================================= */
-
--- 0.1 Eliminar Tablas del Esquema PROCESO
-DROP TABLE IF EXISTS proceso.TMD_DISTRIBUCION_COMPENSACION;
-DROP TABLE IF EXISTS proceso.TMD_GASTO_PERSONAL;
-GO
-
--- 0.2 Eliminar Tablas del Esquema REGISTRO (Hijas primero, luego padres)
-DROP TABLE IF EXISTS registro.TMD_DISTRIBUCION_GIP_DETALLE;
-DROP TABLE IF EXISTS registro.TMD_DISTRIBUCION_GIP;
-DROP TABLE IF EXISTS registro.TMD_REGISTRO_HORAMES_ACTTAREA;
-DROP TABLE IF EXISTS registro.TMD_REGISTRO_HORAMES_ACT;
-DROP TABLE IF EXISTS registro.TMD_REGISTRO_HORAMES_VALIDACION;
-DROP TABLE IF EXISTS registro.TMD_REGISTRO_HORAMES;
-DROP TABLE IF EXISTS registro.TMD_REGISTRO_HORADIA_ACTTAREA;
-DROP TABLE IF EXISTS registro.TMD_REGISTRO_HORADIA_ACT;
-DROP TABLE IF EXISTS registro.TMD_REGISTRO_HORADIA_VALIDACION;
-DROP TABLE IF EXISTS registro.TMD_REGISTRO_HORADIA;
-DROP TABLE IF EXISTS registro.TMD_PERIODO_EMPLEADO;
-DROP TABLE IF EXISTS registro.TMD_PERIODO_PROYECTO;
-DROP TABLE IF EXISTS registro.TMC_PERIODO;
-DROP TABLE IF EXISTS registro.TMD_PARAMETRO_ATRIBUTO;
-DROP TABLE IF EXISTS registro.TMC_PARAMETRO;
-DROP TABLE IF EXISTS registro.TG_TIPO_DATO;
-GO
-
--- 0.2 Eliminar Tablas del Esquema GENERAL
-DROP TABLE IF EXISTS general.TG_AUDITORIA;
-DROP TABLE IF EXISTS general.TG_CONFIGURACION;
-GO
 
 /* =========================================================================
    1. CREACIÓN CONDICIONAL DE ESQUEMAS
@@ -170,8 +145,12 @@ BEGIN
         txtUsuarioCreacion varchar(30) NULL,
         fecActualizacion datetime NULL,
         txtUsuarioActualizacion varchar(30) NULL,
-        CONSTRAINT PK_TMC_PARAMETRO PRIMARY KEY CLUSTERED (ideParametro ASC),
-        CONSTRAINT UQ_TMC_PARAMETRO_ANIO_MES UNIQUE (numAnio, numMes)
+        CONSTRAINT PK_TMC_PARAMETRO PRIMARY KEY CLUSTERED (ideParametro ASC)
+        -- La unicidad de (numAnio, numMes) NO se declara aqui a proposito.
+        -- La resuelve el indice filtrado UX_TMC_PARAMETRO_PERIODO de
+        -- 04_create_index.sql, que solo alcanza a las filas vigentes
+        -- (flgEstado = 1). Una UNIQUE sin filtro impediria volver a crear
+        -- una parametrizacion para un periodo eliminado logicamente.
     );
 
     EXEC sys.sp_addextendedproperty @name=N'MS_Description', @value=N'Parámetros y flags de configuración de captura por periodo', @level0type=N'SCHEMA',@level0name=N'registro', @level1type=N'TABLE',@level1name=N'TMC_PARAMETRO';

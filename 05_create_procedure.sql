@@ -4,6 +4,15 @@
 USE [COSTO_LABOR];
 GO
 
+/* Obligatorio: las tablas con indices filtrados rechazan cualquier DML y
+   cualquier procedimiento compilado sin estas opciones. SQL Server las
+   guarda al crear el objeto, asi que si el despliegue se hace con una
+   herramienta que no las active, el procedimiento se crea bien pero
+   falla al ejecutarse. */
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
 -- Tipo tabla usado para enviar el detalle de atributos en una sola llamada
 IF TYPE_ID('registro.TYPE_PARAMETRO_ATRIBUTO') IS NULL
     CREATE TYPE registro.TYPE_PARAMETRO_ATRIBUTO AS TABLE (
