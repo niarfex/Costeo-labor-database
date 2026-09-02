@@ -9,7 +9,7 @@
      50024  el trabajador no tiene una observacion pendiente de subsanar
      50025  falta el comentario obligatorio al observar un registro
      50026  nadie da conformidad a sus propias horas
-     50027  la celda ya se captura por dia y pertenece a la HU-005
+     50027  el trabajador ya registra por dia en el mes (HU-005)
 
    Decision de diseno sobre la validacion:
    la jefatura valida el MES completo de un trabajador (CA-05: el modal lista
@@ -25,10 +25,9 @@
    recalcula desde las horas diarias. Es la misma fila y el indice
    UX_TMD_REGISTRO_HORAMES_PERIODO garantiza que solo exista una.
 
-   Criterio aplicado: la modalidad se fija por celda y gana la primera que
-   registra. Aqui se rechaza con 50027 la captura mensual sobre una celda que
-   ya tiene horas diarias. Se distingue una de otra porque la consolidacion de
-   la HU-005 solo escribe numHoras y nunca crea filas de detalle.
+   Criterio confirmado por el lider: la modalidad se fija por TRABAJADOR y MES,
+   no por proyecto. Si el trabajador ya tiene horas diarias en cualquier
+   proyecto del mes, la captura mensual se rechaza con 50027 para todos.
 
    PENDIENTE: falta la guarda simetrica en usp_RegistroHoraMes_Consolidar
    (HU-005), que hoy sobrescribe numHoras aunque la celda tenga detalle
@@ -385,13 +384,14 @@ BEGIN
                  AND codEstadoValidacion = 'CONFORME')
         THROW 50022, 'El registro ya fue validado por la jefatura y no admite cambios.', 1;
 
-    -- Una celda que ya se captura por dia pertenece a la HU-005: su
+    -- Un trabajador que ya registra por dia en el mes pertenece a la HU-005: su
     -- usp_RegistroHoraMes_Consolidar recalcula numHoras desde las horas diarias
-    -- y pisaria lo que se guarde aqui. Se rechaza en vez de perder el dato.
+    -- y pisaria lo que se guarde aqui. La modalidad se fija por trabajador y
+    -- mes, no por proyecto: basta un dia cargado en cualquiera de ellos.
     IF EXISTS (SELECT 1 FROM registro.TMD_REGISTRO_HORADIA
-               WHERE ideEmpleado = @ideEmpleado AND codProyecto = @codProyecto
+               WHERE ideEmpleado = @ideEmpleado
                  AND numAnio = @numAnio AND numMes = @numMes AND flgEstado = 1)
-        THROW 50027, 'Este proyecto se registra por dia; sus horas del mes se consolidan desde esa pantalla.', 1;
+        THROW 50027, 'El trabajador ya registra sus horas por dia en este mes; se consolidan desde esa pantalla.', 1;
 
     BEGIN TRY
         BEGIN TRANSACTION;
