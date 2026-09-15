@@ -8,24 +8,86 @@
 -- (1°)
 -- Configurar la primera consulta SQL
 -- Insertamos en tabla proceso.TMD_GASTO_PERSONAL (BD_REP19) 
-SELECT vd.voucherno, '' as txtTipoGasto, vd.voucherline, vd.vendor, vh.status, TRIM(am.localname) AS txtLocalName, 
-           vd.localamount,pm.Persona as idePersona, TRIM(pm.NombreCompleto) AS txtNombreCompleto, am.account
-           , pm.Documento, hrdiv.DescripcionLarga AS Area, hrdep.Descripcion as Departamento, 
-           hre.Descripcion AS Cargo, 
-           vd.CostCenter, em.CentroCostos, vd.period 
-           FROM voucherdetail AS vd 
-           LEFT JOIN PersonaMast AS pm ON vd.vendor = pm.Persona 
-           LEFT JOIN EmpleadoMast AS em ON pm.Persona = em.Empleado 
-           LEFT JOIN HR_PuestoEmpresa hre ON hre.CodigoPuesto = em.CodigoCargo 
-           LEFT JOIN HR_Departamento hrdep ON em.DepartamentoOperacional = hrdep.Departamento 
-           LEFT JOIN HR_Division as hrdiv ON em.Division=hrdiv.Division 
-           LEFT JOIN voucherheader AS vh ON vh.period = vd.period AND vh.voucherno = vd.voucherno 
-           LEFT JOIN accountmst AS am ON am.account = vd.Account 
-           WHERE vd.period = '202501' AND vh.status = 'PR' 
-           AND am.account BETWEEN 62110010 AND 65990070 
-           AND am.account NOT IN (63801400, 63801410, 63801420, 63801430, 63801440, 63801450, 63801460, 63801470, 63801480, 63801490, 63801500, 63801600, 63802070, 63802080, 63802085, 63802090, 63802095, 63803000, 63803005, 63803010, 63930040) 
-           AND vd.afe Not in ('000000505049')
-           AND NOT (vd.CostCenter = '0216')
+SELECT 
+    vd.voucherno,
+    CASE 
+        -- 1. Regla condicional por Centro de Costos (tienen prioridad)
+        WHEN am.account IN ('64320010', '65990070', '63112040', '64310010') AND vd.CostCenter = '111' 
+            THEN 'Reembolso y Proinv.'
+
+        -- 2. Bonos y Otros
+        WHEN am.account IN (
+            '62200020', '62200030', '62200040', '62200050',
+            '62300010', '62400010', '62500020', '62500030', 
+            '62930010'
+        ) THEN 'Bonos y Otros'
+
+        -- 3. Gasto de Personal
+        WHEN am.account IN (
+            '62110010', '62120010', '62130010', '62140010', '62150010',
+            '62200010', '62500010', '62500031', '62500050', '62600010', 
+            '62710010', '62720010', '62750010', '62910010', '62920010'
+        ) THEN 'Gasto de Personal'
+
+        -- 4. Gastos Financieros
+        WHEN am.account = '63910010' 
+            THEN 'Gastos Financiero'
+
+        -- 5. Otros
+        WHEN am.account IN ('65514050', '65514060') 
+            THEN 'Otros'
+
+        -- 6. Por defecto: Todo el resto de cuentas dentro del rango del WHERE
+        ELSE 'Gasto Operativo'
+    END AS txtTipoGasto,
+
+    vd.voucherline,
+    vd.vendor,
+    vh.status,
+    TRIM(am.localname) AS txtLocalName,
+    vd.localamount,
+    pm.Persona AS idePersona,
+    TRIM(pm.NombreCompleto) AS txtNombreCompleto,
+    am.account,
+    pm.Documento,
+    hrdiv.DescripcionLarga AS Area,
+    hrdep.Descripcion AS Departamento,
+    hre.Descripcion AS Cargo,
+    vd.CostCenter,
+    em.CentroCostos,
+    vd.period
+
+FROM voucherdetail AS vd
+INNER JOIN voucherheader AS vh 
+    ON vh.period = vd.period 
+   AND vh.voucherno = vd.voucherno
+LEFT JOIN accountmst AS am 
+    ON am.account = vd.Account
+LEFT JOIN PersonaMast AS pm 
+    ON pm.Persona = vd.vendor
+LEFT JOIN EmpleadoMast AS em 
+    ON em.Empleado = pm.Persona
+LEFT JOIN HR_PuestoEmpresa AS hre 
+    ON hre.CodigoPuesto = em.CodigoCargo
+LEFT JOIN HR_Departamento AS hrdep 
+    ON hrdep.Departamento = em.DepartamentoOperacional
+LEFT JOIN HR_Division AS hrdiv 
+    ON hrdiv.Division = em.Division
+
+WHERE vd.period = '202501'
+  AND vh.status = 'PR'
+  -- Mismo tipo de dato (VARCHAR/CHAR) para evitar Type Conversion y aprovechar índices
+  AND am.account >= '62110010' 
+  AND am.account <= '65990070'
+  AND am.account NOT IN (
+      '63801400', '63801410', '63801420', '63801430', '63801440', 
+      '63801450', '63801460', '63801470', '63801480', '63801490', 
+      '63801500', '63801600', '63802070', '63802080', '63802085', 
+      '63802090', '63802095', '63803000', '63803005', '63803010', 
+      '63930040'
+  )
+  AND vd.afe <> '000000505049'
+  AND vd.CostCenter NOT IN ('0216');
 
 -- (2°) --Aplicar un Trim a account,CostCenter, CentroCostos, Departamento (En general a todos los textos para asegurar que los datos no tienen espacios vacios demás)
 
@@ -243,22 +305,51 @@ SELECT vd.voucherno, '' as txtTipoGasto, vd.voucherline, vd.vendor, vh.status, T
 
 -- Configurar la segunda consulta SQL
 -- Insertamos en tabla proceso.TMD_DISTRIBUCION_COMPENSACION (BD_DistribucionCompensa)
-SELECT vdet.period, ACREF.DescripcionLocal, vDet.afe as Proyecto, 
-           vDet.localamount as Monto, a.englishname, '' as txtCategoria, vDet.Account, vDet.voucherno, vDet.vendor, vDet.invoice 
-           FROM voucherdetail as vDet 
-           LEFT JOIN AC_ReferenciaFiscal as AcRef ON vDet.ReferenciaFiscal03 = AcRef.ReferenciaFiscal 
-           LEFT JOIN voucherheader as vh ON vh.period = vDet.period AND vh.voucherno = vDet.voucherno 
-           LEFT JOIN afemst as a ON a.afe = vDet.afe  
-           LEFT JOIN accountmst as am ON am.account = vDet.Account 
-           WHERE AcRef.Ano = '2025' 
-           AND vDet.period = '202501' 
-           AND AcRef.TipoReferenciaFiscal = '03' 
-           AND AcRef.Version = '1' 
-           AND vDet.ReferenciaFiscal02 = '33 1 1 1 1' 
-           AND vdet.afe IS NOT NULL 
-           AND vDet.afe <> '000000000074' 
-           AND vh.status NOT LIKE '%AN%' 
-           AND AcRef.DescripcionLocal NOT LIKE '%PRESUPUESTO OPERATIVO%'
+SELECT vdet.period, TRIM(ACREF.DescripcionLocal) AS DescripcionLocal, TRIM(vDet.afe) as Proyecto, 
+    vDet.localamount as Monto, TRIM(a.englishname) AS englishname
+    , CASE 
+        WHEN RTRIM(vDet.afe) IN (
+            '000000000001', '000000000007', '000000000009', '000000000013',
+            '000000000027', '000000000029', '000000000040', '000000000041',
+            '000000000057', '000000000058', '000000000065', '0000000104',
+            '000000202009', '000000203008', '000000210033', '000000210034',
+            '000000210035', '000000210045', '000000220014', '000000220017',
+            '000000230073'
+        ) THEN 'FA'
+
+        WHEN RTRIM(vDet.afe) IN (
+            '000000000018', '000000000019', '000000000020', '000000000021',
+            '000000000022', '000000000023', '000000321016', '000000000103',
+            '000000210043', '000000302002', '000000302004', '000000302006',
+            '000000302007', '000000310031', '000000310032', '000000321001',
+            '000000340001', '000000340002', '000000350001', '000000364001',
+            '000000632025', '000000632026'
+        ) THEN 'PAR'
+
+        WHEN RTRIM(vDet.afe) IN ('000000000074') 
+            THEN 'TUCARI'
+
+        WHEN RTRIM(vDet.afe) IN ('000000000105', '000000000106', '000000000107') 
+            THEN 'TUQUIAR'
+
+        ELSE 'Categoría Desconocida'
+    END as txtCategoria
+    , TRIM(vDet.Account) AS Account, TRIM(vDet.voucherno) AS voucherno
+    , vDet.vendor, TRIM(vDet.invoice) AS invoice
+    FROM voucherdetail as vDet 
+    LEFT JOIN AC_ReferenciaFiscal as AcRef ON vDet.ReferenciaFiscal03 = AcRef.ReferenciaFiscal 
+    LEFT JOIN voucherheader as vh ON vh.period = vDet.period AND vh.voucherno = vDet.voucherno 
+    LEFT JOIN afemst as a ON a.afe = vDet.afe  
+    LEFT JOIN accountmst as am ON am.account = vDet.Account 
+    WHERE AcRef.Ano = '2025' 
+    AND vDet.period = '202501' 
+    AND AcRef.TipoReferenciaFiscal = '03' 
+    AND AcRef.Version = '1' 
+    AND vDet.ReferenciaFiscal02 = '33 1 1 1 1' 
+    AND vdet.afe IS NOT NULL 
+    AND vDet.afe <> '000000000074' 
+    AND vh.status NOT LIKE '%AN%' 
+    AND AcRef.DescripcionLocal NOT LIKE '%PRESUPUESTO OPERATIVO%'
 
 -- En la tabla BD_DistribucionCompensa categoriza los valores segúnn la celda proyecto
 /*
