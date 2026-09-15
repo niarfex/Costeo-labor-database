@@ -64,7 +64,7 @@ FROM (VALUES
    ('HORAS_DIA',           'Registro de horas por dia',  '/costo-labor/horas-dia',           'bi bi-calendar-day',      'COSTO_LABOR',   1),
    -- HU-006
    ('HORAS_MES',           'Registro de horas por mes',  '/costo-labor/horas-mes',           'bi bi-calendar-month',    'COSTO_LABOR',   2),
-   -- HU-007 a HU-011
+   -- Reportes. La HU-007 no es un reporte: su opcion esta en 24_insert_opcion_hu007.sql
    ('REP_MANO_OBRA',       'Costo de mano de obra',      '/reportes/mano-obra',              'bi bi-bar-chart',         'REPORTES',      1),
    ('REP_GASTO_OPERATIVO', 'Gasto operativo',            '/reportes/gasto-operativo',        'bi bi-bar-chart',         'REPORTES',      2),
    ('REP_COMPENSACION',    'Compensacion por proyecto',  '/reportes/compensacion',           'bi bi-bar-chart',         'REPORTES',      3),
