@@ -58,21 +58,13 @@ SELECT
     vd.period
 
 FROM voucherdetail AS vd
-INNER JOIN voucherheader AS vh 
-    ON vh.period = vd.period 
-   AND vh.voucherno = vd.voucherno
-LEFT JOIN accountmst AS am 
-    ON am.account = vd.Account
-LEFT JOIN PersonaMast AS pm 
-    ON pm.Persona = vd.vendor
-LEFT JOIN EmpleadoMast AS em 
-    ON em.Empleado = pm.Persona
-LEFT JOIN HR_PuestoEmpresa AS hre 
-    ON hre.CodigoPuesto = em.CodigoCargo
-LEFT JOIN HR_Departamento AS hrdep 
-    ON hrdep.Departamento = em.DepartamentoOperacional
-LEFT JOIN HR_Division AS hrdiv 
-    ON hrdiv.Division = em.Division
+INNER JOIN voucherheader AS vh  ON vh.period = vd.period AND vh.voucherno = vd.voucherno
+LEFT JOIN accountmst AS am  ON am.account = vd.Account
+LEFT JOIN PersonaMast AS pm  ON pm.Persona = vd.vendor
+LEFT JOIN EmpleadoMast AS em  ON em.Empleado = pm.Persona
+LEFT JOIN HR_PuestoEmpresa AS hre  ON hre.CodigoPuesto = em.CodigoCargo
+LEFT JOIN HR_Departamento AS hrdep  ON hrdep.Departamento = em.DepartamentoOperacional
+LEFT JOIN HR_Division AS hrdiv  ON hrdiv.Division = em.Division
 
 WHERE vd.period = '202501'
   AND vh.status = 'PR'
