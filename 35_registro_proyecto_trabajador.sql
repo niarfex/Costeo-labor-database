@@ -8,8 +8,8 @@
    validado las horas del proyecto.
 
    El codigo del proyecto se guarda tal como viene de afemst (12 digitos).
-   Los reportes de la HU-008 cruzan por RIGHT(codProyecto, 6), asi que
-   tambien reconocen este formato.
+   Un codigo antiguo de 6 digitos equivale al de afemst con seis ceros
+   delante; asi lo cruzan tambien los reportes (script 34).
 
    Errores nuevos:
      50060  el proyecto no existe en el catalogo de BD_SPRING
@@ -236,12 +236,14 @@ BEGIN
     IF @nomProyecto IS NULL
         THROW 50060, 'El proyecto no existe en el catalogo de SPRING.', 1;
 
-    -- Los periodos anteriores guardaban el codigo con 6 digitos y afemst lo
-    -- trae con 12: se comparan por los ultimos seis, como en los reportes.
+    -- Los periodos anteriores guardaban el codigo con 6 digitos, que es el de
+    -- afemst sin los seis ceros iniciales. No se compara solo por los ultimos
+    -- seis: en afemst hay proyectos distintos que los comparten (000000000019
+    -- 5 RELAVERAS y 002026000019 Lodocretos).
     IF EXISTS (SELECT 1 FROM registro.TMD_PERIODO_PROYECTO
                WHERE numAnio = @numAnio AND numMes = @numMes
-                 AND ideEmpleado = @ideEmpleado AND RIGHT(codProyecto, 6) = RIGHT(@codProyecto, 6)
-                 AND flgEstado = 1)
+                 AND ideEmpleado = @ideEmpleado AND flgEstado = 1
+                 AND CASE WHEN LEN(codProyecto) = 6 THEN CONCAT('000000', codProyecto) ELSE codProyecto END = @codProyecto)
         THROW 50061, 'El proyecto ya fue agregado en el periodo.', 1;
 
     -- Nombre del trabajador: el del periodo, el de su usuario o el de SPRING.

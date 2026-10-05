@@ -19,7 +19,14 @@
       la fila SIN DISTRIBUIR. Antes se perdia y la mano de obra por proyecto
       salia en cero, por eso la compensacion y el total coincidian.
 
-   5. Gasto no recuperable (script 33): RESUMEN_GASTO_PERSONAL tiene MONTO
+   5. Proyectos por codigo completo: el script 29 cruzaba horas y
+      compensacion por los ultimos seis digitos, y en afemst hay proyectos
+      distintos que los comparten (000000000019 5 RELAVERAS y 002026000019
+      Lodocretos). Un codigo de 6 digitos de periodos anteriores se completa
+      con seis ceros. En pantalla se sigue mostrando el codigo corto, salvo
+      que dos proyectos de la lista lo compartan.
+
+   6. Gasto no recuperable (script 33): RESUMEN_GASTO_PERSONAL tiene MONTO
       (recuperable), una columna por grupo y TOTAL. Los Core y el reparto por
       proyecto usan solo lo recuperable.
 
@@ -327,7 +334,7 @@ EMPLEADOS AS (
 ),
 
 PROYECTO_FUENTE AS (
-    SELECT RIGHT(codProyecto, 6) AS codCorto, codProyecto, codFuente, nomProyecto
+    SELECT codProyecto AS codClave, codProyecto, codFuente, nomProyecto
     FROM proceso.TMC_PROYECTO_FUENTE
     WHERE flgEstado = 1
 ),
@@ -335,19 +342,23 @@ PROYECTO_FUENTE AS (
 -- Correcciones 27/09: las columnas del HH por proyecto son los proyectos de la
 -- distribucion de compensacion, tengan o no horas.
 PROYECTOS_COMPENSACION AS (
-    SELECT RIGHT(Proyecto, 6) AS codCorto, MAX(englishname) AS nomProyecto, MAX(txtCategoria) AS FUENTE
+    SELECT Proyecto AS codClave, MAX(englishname) AS nomProyecto, MAX(txtCategoria) AS FUENTE
     FROM BD_DISTRIBUCION_COMPENSACION
     WHERE Proyecto IS NOT NULL
-    GROUP BY RIGHT(Proyecto, 6)
+    GROUP BY Proyecto
 ),
 
 PROYECTOS_HH AS (
-    SELECT pc.codCorto,
-           LEFT(CONCAT(pc.codCorto, ''-'', COALESCE(pf.nomProyecto, pc.nomProyecto)), 120) AS PROYECTO,
+    SELECT pc.codClave,
+           -- El codigo corto, como en el Excel; el completo si otro proyecto de la
+           -- lista comparte los ultimos seis digitos, para que no se confundan.
+           LEFT(CONCAT(CASE WHEN COUNT(*) OVER (PARTITION BY RIGHT(pc.codClave, 6)) > 1
+                            THEN pc.codClave ELSE RIGHT(pc.codClave, 6) END,
+                       ''-'', COALESCE(pf.nomProyecto, pc.nomProyecto)), 120) AS PROYECTO,
            CASE COALESCE(pf.codFuente, pc.FUENTE) WHEN ''FA'' THEN 1 WHEN ''PAR'' THEN 2 WHEN ''28E'' THEN 3
                 WHEN ''TUCARI'' THEN 4 WHEN ''TUQUIAR'' THEN 5 ELSE 6 END AS ORDEN_FUENTE
     FROM PROYECTOS_COMPENSACION pc
-    LEFT JOIN PROYECTO_FUENTE pf ON pf.codCorto = pc.codCorto
+    LEFT JOIN PROYECTO_FUENTE pf ON pf.codClave = pc.codClave
 ),
 
 -- HU-008 CA-02: solo los meses que la jefatura dejo CONFORME. Desde el 27/09,
@@ -356,7 +367,7 @@ PROYECTOS_HH AS (
 -- El reparto encadena divisiones: se calcula en float, como el Excel, y se
 -- redondea solo al final. Con decimal se truncaban centesimos por proyecto.
 HORAS_VALIDADAS AS (
-    SELECT r.ideEmpleado, RIGHT(r.codProyecto, 6) AS codCorto, MAX(r.nomProyecto) AS nomProyecto,
+    SELECT r.ideEmpleado, CASE WHEN LEN(r.codProyecto) = 6 THEN CONCAT(''000000'', r.codProyecto) ELSE r.codProyecto END AS codClave, MAX(r.nomProyecto) AS nomProyecto,
            CAST(SUM(r.numHoras) AS float) AS HORAS
     FROM registro.TMD_REGISTRO_HORAMES r
     JOIN registro.VW_REGISTRO_HORAMES_ESTADO v
@@ -364,8 +375,8 @@ HORAS_VALIDADAS AS (
      AND v.codEstadoValidacion = ''CONFORME''
     WHERE r.numAnio = @numAnio AND r.numMes = @numMes AND r.flgEstado = 1 AND r.numHoras > 0
       AND @idePeriodo IS NOT NULL
-      AND RIGHT(r.codProyecto, 6) IN (SELECT codCorto FROM PROYECTOS_COMPENSACION)
-    GROUP BY r.ideEmpleado, RIGHT(r.codProyecto, 6)
+      AND CASE WHEN LEN(r.codProyecto) = 6 THEN CONCAT(''000000'', r.codProyecto) ELSE r.codProyecto END IN (SELECT codClave FROM PROYECTOS_COMPENSACION)
+    GROUP BY r.ideEmpleado, CASE WHEN LEN(r.codProyecto) = 6 THEN CONCAT(''000000'', r.codProyecto) ELSE r.codProyecto END
 ),
 
 HORAS_EMPLEADO AS (
@@ -406,15 +417,15 @@ PESOS AS (
 ),
 
 HORAS_DEPARTAMENTO AS (
-    SELECT p.codDepartamento, h.codCorto,
+    SELECT p.codDepartamento, h.codClave,
         SUM(p.HORAS_AJUSTADAS * h.HORAS / p.HORAS_EJECUTADAS * p.PESO) AS HORAS_PONDERADAS
     FROM PESOS p
     JOIN HORAS_VALIDADAS h ON h.ideEmpleado = p.ideEmpleado
-    GROUP BY p.codDepartamento, h.codCorto
+    GROUP BY p.codDepartamento, h.codClave
 ),
 
 PROPORCION_DEPARTAMENTO AS (
-    SELECT codDepartamento, codCorto,
+    SELECT codDepartamento, codClave,
         HORAS_PONDERADAS / NULLIF(SUM(HORAS_PONDERADAS) OVER (PARTITION BY codDepartamento), 0) AS PROPORCION
     FROM HORAS_DEPARTAMENTO
 ),
@@ -429,49 +440,49 @@ COSTO_DEPARTAMENTO AS (
 
 -- Excel: fila "Total GO", mezcla de los departamentos ponderada por su gasto.
 PROPORCION_GERENCIA AS (
-    SELECT codCorto, PONDERADO / NULLIF(SUM(PONDERADO) OVER (), 0) AS PROPORCION
+    SELECT codClave, PONDERADO / NULLIF(SUM(PONDERADO) OVER (), 0) AS PROPORCION
     FROM (
-        SELECT h.codCorto, SUM(h.HORAS_PONDERADAS * cd.COSTO / NULLIF(t.COSTO, 0)) AS PONDERADO
+        SELECT h.codClave, SUM(h.HORAS_PONDERADAS * cd.COSTO / NULLIF(t.COSTO, 0)) AS PONDERADO
         FROM HORAS_DEPARTAMENTO h
         JOIN COSTO_DEPARTAMENTO cd ON cd.codDepartamento = h.codDepartamento
         CROSS JOIN (SELECT SUM(COSTO) AS COSTO FROM COSTO_DEPARTAMENTO) t
-        GROUP BY h.codCorto
+        GROUP BY h.codClave
     ) x
 ),
 
 PROPORCION_EMPLEADO AS (
-    SELECT e.ideEmpleado, h.codCorto, h.HORAS / he.HORAS_EJECUTADAS AS PROPORCION
+    SELECT e.ideEmpleado, h.codClave, h.HORAS / he.HORAS_EJECUTADAS AS PROPORCION
     FROM EMPLEADOS e
     JOIN HORAS_EMPLEADO he ON he.ideEmpleado = e.ideEmpleado
     JOIN HORAS_VALIDADAS h ON h.ideEmpleado = e.ideEmpleado
     WHERE e.codNivel = ''SUBORDINADO'' AND e.codDepartamento IN (''DGO'', ''DIP'', ''DPCM'', ''RRCC'')
     UNION ALL
-    SELECT e.ideEmpleado, pd.codCorto, pd.PROPORCION
+    SELECT e.ideEmpleado, pd.codClave, pd.PROPORCION
     FROM EMPLEADOS e
     JOIN PROPORCION_DEPARTAMENTO pd ON pd.codDepartamento = e.codDepartamento
     WHERE e.codDepartamento IN (''DGO'', ''DIP'', ''DPCM'', ''RRCC'')
       AND (e.codNivel <> ''SUBORDINADO''
            OR NOT EXISTS (SELECT 1 FROM HORAS_EMPLEADO he WHERE he.ideEmpleado = e.ideEmpleado))
     UNION ALL
-    SELECT e.ideEmpleado, pg.codCorto, pg.PROPORCION
+    SELECT e.ideEmpleado, pg.codClave, pg.PROPORCION
     FROM EMPLEADOS e
     CROSS JOIN PROPORCION_GERENCIA pg
     WHERE e.codDepartamento = ''GO''
 ),
 
 MO_OPERACIONES AS (
-    SELECT pe.codCorto, SUM(pe.PROPORCION * c.COSTO) AS MONTO
+    SELECT pe.codClave, SUM(pe.PROPORCION * c.COSTO) AS MONTO
     FROM PROPORCION_EMPLEADO pe
     JOIN COSTO_EMPLEADO c ON c.vendor = pe.ideEmpleado
-    GROUP BY pe.codCorto
+    GROUP BY pe.codClave
 ),
 
 -- Excel: columna S de "Distribucion MO (Calculo)", promedio simple de los cuatro departamentos.
 MO_GERENTE_GENERAL AS (
-    SELECT pd.codCorto, SUM(pd.PROPORCION) / 4 * CAST(MAX(gg.PRE_CORE_2) AS float) AS MONTO
+    SELECT pd.codClave, SUM(pd.PROPORCION) / 4 * CAST(MAX(gg.PRE_CORE_2) AS float) AS MONTO
     FROM PROPORCION_DEPARTAMENTO pd
     CROSS JOIN TOTAL_PRECORES_GG gg
-    GROUP BY pd.codCorto
+    GROUP BY pd.codClave
 ),
 
 PORCENTAJES_DEPARTAMENTO AS (
@@ -483,44 +494,44 @@ PORCENTAJES_DEPARTAMENTO AS (
 ),
 
 MO_AREAS_APOYO AS (
-    SELECT pd.codCorto, SUM(pd.PROPORCION * CAST(a.TOTAL AS float) * CAST(pc.PORC_APOYO AS float) / 100) AS MONTO
+    SELECT pd.codClave, SUM(pd.PROPORCION * CAST(a.TOTAL AS float) * CAST(pc.PORC_APOYO AS float) / 100) AS MONTO
     FROM PROPORCION_DEPARTAMENTO pd
     JOIN PORCENTAJES_DEPARTAMENTO pc ON pc.codDepartamento = pd.codDepartamento
     CROSS JOIN TOTAL_AREAS_APOYO a
-    GROUP BY pd.codCorto
+    GROUP BY pd.codClave
 ),
 
 GASTO_OPERATIVO_PROYECTO AS (
-    SELECT pd.codCorto, SUM(pd.PROPORCION * CAST(g.TOTAL AS float) * CAST(pc.PORC_OPERATIVO AS float) / 100) AS MONTO
+    SELECT pd.codClave, SUM(pd.PROPORCION * CAST(g.TOTAL AS float) * CAST(pc.PORC_OPERATIVO AS float) / 100) AS MONTO
     FROM PROPORCION_DEPARTAMENTO pd
     JOIN PORCENTAJES_DEPARTAMENTO pc ON pc.codDepartamento = pd.codDepartamento
     CROSS JOIN TOTAL_GASTO_OPERATIVO g
-    GROUP BY pd.codCorto
+    GROUP BY pd.codClave
 ),
 
 COMPENSACION_PROYECTO AS (
-    SELECT RIGHT(Proyecto, 6) AS codCorto, MAX(txtCategoria) AS FUENTE, MAX(englishname) AS nomProyecto,
+    SELECT Proyecto AS codClave, MAX(txtCategoria) AS FUENTE, MAX(englishname) AS nomProyecto,
            CAST(SUM(Monto) * @porcCompensacion / 100 AS float) AS MONTO
     FROM BD_DISTRIBUCION_COMPENSACION
-    GROUP BY RIGHT(Proyecto, 6)
+    GROUP BY Proyecto
 ),
 
 COSTO_POR_PROYECTO AS (
-    SELECT codCorto, SUM(MO) AS MO, SUM(GOP) AS GOP, SUM(COMP) AS COMP
+    SELECT codClave, SUM(MO) AS MO, SUM(GOP) AS GOP, SUM(COMP) AS COMP
     FROM (
-        SELECT codCorto, MONTO AS MO, CAST(0 AS float) AS GOP, CAST(0 AS float) AS COMP FROM MO_OPERACIONES
-        UNION ALL SELECT codCorto, MONTO, 0, 0 FROM MO_GERENTE_GENERAL
-        UNION ALL SELECT codCorto, MONTO, 0, 0 FROM MO_AREAS_APOYO
-        UNION ALL SELECT codCorto, 0, MONTO, 0 FROM GASTO_OPERATIVO_PROYECTO
-        UNION ALL SELECT codCorto, 0, 0, MONTO FROM COMPENSACION_PROYECTO
+        SELECT codClave, MONTO AS MO, CAST(0 AS float) AS GOP, CAST(0 AS float) AS COMP FROM MO_OPERACIONES
+        UNION ALL SELECT codClave, MONTO, 0, 0 FROM MO_GERENTE_GENERAL
+        UNION ALL SELECT codClave, MONTO, 0, 0 FROM MO_AREAS_APOYO
+        UNION ALL SELECT codClave, 0, MONTO, 0 FROM GASTO_OPERATIVO_PROYECTO
+        UNION ALL SELECT codClave, 0, 0, MONTO FROM COMPENSACION_PROYECTO
     ) x
-    GROUP BY codCorto
+    GROUP BY codClave
 ),
 
 NOMBRES_HORAS AS (
-    SELECT codCorto, MAX(nomProyecto) AS nomProyecto
+    SELECT codClave, MAX(nomProyecto) AS nomProyecto
     FROM HORAS_VALIDADAS
-    GROUP BY codCorto
+    GROUP BY codClave
 ),
 
 -- Lo del CORE 2 que no llego a ningun proyecto: departamentos sin horas
@@ -536,15 +547,17 @@ SIN_DISTRIBUIR AS (
 
 TOTAL_COSTO_LABOR AS (
     SELECT COALESCE(pf.codFuente, cp.FUENTE, ''SIN FUENTE'') AS FUENTE,
-           COALESCE(pf.codProyecto, c.codCorto) AS CODIGO,
-           CONCAT(c.codCorto, ''-'', COALESCE(pf.nomProyecto, cp.nomProyecto, nh.nomProyecto)) AS PROYECTOS,
+           c.codClave AS CODIGO,
+           CONCAT(CASE WHEN COUNT(*) OVER (PARTITION BY RIGHT(c.codClave, 6)) > 1
+                       THEN c.codClave ELSE RIGHT(c.codClave, 6) END,
+                  ''-'', COALESCE(pf.nomProyecto, cp.nomProyecto, nh.nomProyecto)) AS PROYECTOS,
            CAST(c.MO AS decimal(14,4)) AS MANO_DE_OBRA,
            CAST(c.GOP AS decimal(14,4)) AS GASTO_OPERATIVO,
            CAST(c.COMP AS decimal(14,4)) AS COMPENSACION
     FROM COSTO_POR_PROYECTO c
-    LEFT JOIN PROYECTO_FUENTE pf ON pf.codCorto = c.codCorto
-    LEFT JOIN COMPENSACION_PROYECTO cp ON cp.codCorto = c.codCorto
-    LEFT JOIN NOMBRES_HORAS nh ON nh.codCorto = c.codCorto
+    LEFT JOIN PROYECTO_FUENTE pf ON pf.codClave = c.codClave
+    LEFT JOIN COMPENSACION_PROYECTO cp ON cp.codClave = c.codClave
+    LEFT JOIN NOMBRES_HORAS nh ON nh.codClave = c.codClave
     WHERE c.MO <> 0 OR c.GOP <> 0 OR c.COMP <> 0
     UNION ALL
     -- Lo de la Linea Core 1: personal GIP y las partes Core 1 del Gerente General y del apoyo.
@@ -565,7 +578,7 @@ HH_BASE AS (
            CAST(h.HORAS AS decimal(18,2)) AS HORAS
     FROM EMPLEADOS e
     LEFT JOIN HORAS_VALIDADAS h ON h.ideEmpleado = e.ideEmpleado
-    LEFT JOIN PROYECTOS_HH ph ON ph.codCorto = h.codCorto
+    LEFT JOIN PROYECTOS_HH ph ON ph.codClave = h.codClave
 ),
 
 -- Correcciones 27/09: horas registradas en proyectos que no estan en la
@@ -581,7 +594,7 @@ INCONSISTENCIAS AS (
            ON v.ideEmpleado = r.ideEmpleado AND v.numAnio = r.numAnio AND v.numMes = r.numMes
     WHERE r.numAnio = @numAnio AND r.numMes = @numMes AND r.flgEstado = 1 AND r.numHoras > 0
       AND @idePeriodo IS NOT NULL
-      AND RIGHT(r.codProyecto, 6) NOT IN (SELECT codCorto FROM PROYECTOS_COMPENSACION)
+      AND CASE WHEN LEN(r.codProyecto) = 6 THEN CONCAT(''000000'', r.codProyecto) ELSE r.codProyecto END NOT IN (SELECT codClave FROM PROYECTOS_COMPENSACION)
     GROUP BY r.ideEmpleado, r.codProyecto
 )
 ';
