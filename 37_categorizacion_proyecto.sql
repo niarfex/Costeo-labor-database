@@ -1,5 +1,5 @@
 /* =========================================================================
-   37 - Categorizacion de proyectos (documento del 10/10, punto 4)
+   37 - Categorizacion de proyectos
 
    El procesamiento clasificaba cada proyecto de la distribucion de la
    compensacion con un CASE fijo (FA, PAR, TUCARI, TUQUIAR). Ahora el perfil
@@ -563,7 +563,7 @@ BEGIN
             N'@idePeriodo bigint, @periodo varchar(10), @anio varchar(4), @txtUsuario varchar(30)',
             @idePeriodo = @idePeriodo, @periodo = @periodo, @anio = @anio, @txtUsuario = @txtUsuario;
 
-        -- Documento del 10/10: reemplaza el CASE fijo de FA, PAR, TUCARI y TUQUIAR.
+        -- Reemplaza el CASE fijo de FA, PAR, TUCARI y TUQUIAR.
         UPDATE dc
         SET dc.txtCategoria = c.codCategoria
         FROM proceso.TMD_DISTRIBUCION_COMPENSACION dc

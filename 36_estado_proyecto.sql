@@ -1,5 +1,5 @@
 /* =========================================================================
-   36 - Actualizacion de estado de proyectos (documento del 10/10, puntos 1 a 3)
+   36 - Actualizacion de estado de proyectos
 
    El perfil Contador indica por periodo que proyectos estan activos para
    Costo Labor. El listado se arma con "Replicar del periodo anterior":
