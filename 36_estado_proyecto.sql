@@ -5,7 +5,7 @@
    Costo Labor. El listado se arma con "Replicar del periodo anterior":
 
      - Sin ningun periodo registrado antes, se copian todos los proyectos de
-       BD_SPRING (afemst) con la consulta indicada por el lider.
+       BD_SPRING (afemst) con la consulta de referencia.
      - Con un periodo anterior registrado (el mas reciente, no necesariamente
        el mes previo), se copia su listado con el estado que tenia, y se
        agregan los proyectos de SPRING que aun no figuraban.
@@ -147,7 +147,7 @@ BEGIN
         txtEstadoSpring   varchar(10)  NULL
     );
 
-    -- Consulta del lider. Si SPRING tuviera dos filas con el mismo codigo,
+    -- Consulta de referencia. Si SPRING tuviera dos filas con el mismo codigo,
     -- se queda con una para no romper la clave.
     IF @haySpring = 1
         INSERT INTO #spring (codProyecto, nomProyecto, fecAprobadoSpring, fecInicioSpring, fecFinSpring, txtEstadoSpring)

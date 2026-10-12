@@ -25,7 +25,7 @@
    recalcula desde las horas diarias. Es la misma fila y el indice
    UX_TMD_REGISTRO_HORAMES_PERIODO garantiza que solo exista una.
 
-   Criterio confirmado por el lider: la modalidad se fija por TRABAJADOR y MES,
+   La modalidad se fija por TRABAJADOR y MES,
    no por proyecto. Si el trabajador ya tiene horas diarias en cualquier
    proyecto del mes, la captura mensual se rechaza con 50027 para todos.
 

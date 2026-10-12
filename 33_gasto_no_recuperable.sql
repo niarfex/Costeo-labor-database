@@ -3,7 +3,7 @@
 
    El perfil Contador define por periodo grupos de personal cuyo gasto no se
    podra recuperar, cada uno con un nombre (por ejemplo TUCARI). El personal
-   se busca en BD_SPRING con la consulta indicada por el lider, por nombre,
+   se busca en BD_SPRING con la consulta de referencia, por nombre,
    cargo, area o departamento.
 
    Los grupos se reflejan en el reporte RESUMEN_GASTO_PERSONAL (script 34):
@@ -103,7 +103,7 @@ GO
 /* -------------------------------------------------------------------------
    2. Busqueda de personal del periodo en BD_SPRING
 
-   Es la consulta del lider, con el periodo como parametro, el filtro por
+   Es la consulta de referencia, con el periodo como parametro, el filtro por
    nombre, cargo, area o departamento, y solo empleados. Se limita a 100 filas: es un buscador,
    no un listado.
    ------------------------------------------------------------------------- */
