@@ -65,7 +65,7 @@ GO
 /* -------------------------------------------------------------------------
    2. Catalogo de proyectos de BD_SPRING
 
-   Es la consulta indicada por el lider. Vacio si BD_SPRING no existe, para
+   Es la consulta de referencia. Vacio si BD_SPRING no existe, para
    que los entornos sin esa base no fallen al abrir la vista.
    ------------------------------------------------------------------------- */
 

@@ -16,7 +16,7 @@
      50032  la distribucion no trae actividades
      50033  una actividad vacia o un porcentaje fuera de 0.00 a 100.00
 
-   PROPUESTA, requiere visto bueno del lider tecnico: el CA-02 pide los
+   El CA-02 pide los
    "proyectos asignados a la GIP", pero el modelo no marca a que gerencia
    pertenece un proyecto. Se toman los asignados en el anio a trabajadores del
    departamento DIP (Direccion de Inversion Privada), la misma sigla que usa la

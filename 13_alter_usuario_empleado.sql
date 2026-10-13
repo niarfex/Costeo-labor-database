@@ -1,8 +1,6 @@
 /* =========================================================================
    HU-005 - Vinculo entre el usuario autenticado y el empleado
 
-   PROPUESTA: requiere visto bueno del lider tecnico antes de aplicarse.
-
    El problema: todas las tablas de registro.* identifican a la persona con
    ideEmpleado (bigint) + nomEmpleado, pero la seguridad identifica al usuario
    con txtUsuario / txtObjectId de Entra ID. No existe tabla de empleados ni

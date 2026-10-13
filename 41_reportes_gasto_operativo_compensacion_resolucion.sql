@@ -1,5 +1,5 @@
 ﻿/* =========================================================================
-   40 - Reportes HU-009, HU-010 y HU-012
+   41 - Reportes HU-009, HU-010 y HU-012
 
    proceso.usp_Reporte_CostoLabor suma tres consultas a las del costo labor,
    sobre los mismos calculos del procesamiento (reparto por horas validadas,
@@ -49,7 +49,7 @@ BEGIN
         ('TOTAL_COSTO_LABOR',            N'CASE FUENTE WHEN ''FA'' THEN 1 WHEN ''PAR'' THEN 2 WHEN ''28E'' THEN 3 WHEN ''TUCARI'' THEN 4 '
                                          + N'WHEN ''TUQUIAR'' THEN 5 WHEN ''PROINVERSION'' THEN 7 WHEN ''SIN DISTRIBUIR'' THEN 8 ELSE 6 END, PROYECTOS'),
         ('INCONSISTENCIAS',              N'COLABORADOR, PROYECTO'),
-        -- HU-009, HU-010 y HU-012 (script 40).
+        -- HU-009, HU-010 y HU-012 (script 41).
         ('GASTO_OPERATIVO_DEPARTAMENTO', N'CASE FUENTE WHEN ''FA'' THEN 1 WHEN ''PAR'' THEN 2 WHEN ''28E'' THEN 3 WHEN ''TUCARI'' THEN 4 '
                                          + N'WHEN ''TUQUIAR'' THEN 5 WHEN ''PROINVERSION'' THEN 7 WHEN ''SIN DISTRIBUIR'' THEN 8 ELSE 6 END, FUENTE, CODIGO'),
         ('INCIDENCIA_GASTO_OPERATIVO',   N'ORDEN'),

@@ -7,7 +7,7 @@
    y Trabajador. Ninguna de las dos primeras existe en el modelo, y tampoco
    existe forma de saber que trabajadores dependen de quien.
 
-   PROPUESTA: los tres campos requieren visto bueno del lider tecnico. En el
+   En el
    sistema real salen del ERP SPRING; aqui se agregan donde ya vive el
    empleado del periodo para no crear un maestro nuevo.
 

@@ -1,5 +1,5 @@
 ﻿/* =========================================================================
-   39 - Tipo de gasto de personal
+   40 - Tipo de gasto de personal
 
    El procesamiento clasificaba cada linea del gasto de personal
    (proceso.TMD_GASTO_PERSONAL.txtTipoGasto) con un CASE fijo por cuenta
