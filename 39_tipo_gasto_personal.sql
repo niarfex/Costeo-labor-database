@@ -21,7 +21,11 @@
        el ELSE del CASE.
      - Con el periodo cerrado no se puede modificar.
      - Los reportes del costo labor leen 'Gasto de Personal' y 'Gasto
-       Operativo' por su nombre: esos dos tipos no se pueden renombrar.
+       Operativo' por su nombre: esos dos tipos no se pueden renombrar ni
+       eliminar.
+     - Un periodo sin tipos usa los del anterior. Crear un tipo en ese periodo
+       haria que solo ese tipo cuente y el resto del gasto quede sin
+       clasificar: por eso se exige replicar primero.
 
    Incluye la precarga de enero 2025 con las listas del CASE original
    (script 37), para que el procesamiento clasifique igual que hasta hoy.
@@ -36,6 +40,7 @@
      50106  la cuenta no existe en SPRING
      50107  el centro de costo no existe en SPRING
      50108  no hay un periodo anterior con tipos de gasto que replicar
+     50109  el periodo no tiene tipos y hay uno anterior: replicar antes de crear
 
    Idempotente.
    ========================================================================= */
@@ -273,6 +278,15 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM @cuentas)
         THROW 50104, 'El tipo de gasto debe tener al menos una cuenta.', 1;
 
+    -- Con el periodo vacio el procesamiento usa la configuracion anterior
+    -- completa; un tipo suelto la reemplazaria y el resto quedaria sin tipo.
+    IF @ideTipoGasto IS NULL
+       AND NOT EXISTS (SELECT 1 FROM proceso.TMC_TIPO_GASTO
+                       WHERE numAnio = @numAnio AND numMes = @numMes AND flgEstado = 1)
+       AND EXISTS (SELECT 1 FROM proceso.TMC_TIPO_GASTO
+                   WHERE flgEstado = 1 AND numAnio * 100 + numMes < @numAnio * 100 + @numMes)
+        THROW 50109, 'El periodo aun no tiene tipos de gasto: use Replicar del periodo anterior antes de crear uno nuevo.', 1;
+
     IF EXISTS (SELECT 1 FROM proceso.TMC_TIPO_GASTO
                WHERE numAnio = @numAnio AND numMes = @numMes AND nomTipoGasto = @nomTipoGasto
                  AND flgEstado = 1
@@ -283,7 +297,7 @@ BEGIN
     DECLARE @lista TABLE (codCuenta varchar(30) NOT NULL, codCentroCosto varchar(10) NOT NULL,
                           PRIMARY KEY (codCuenta, codCentroCosto));
     INSERT INTO @lista (codCuenta, codCentroCosto)
-    SELECT DISTINCT TRIM(codCuenta), TRIM(ISNULL(codCentroCosto, ''))
+    SELECT DISTINCT UPPER(TRIM(codCuenta)), UPPER(TRIM(ISNULL(codCentroCosto, '')))
     FROM @cuentas
     WHERE TRIM(codCuenta) <> '';
 
@@ -415,14 +429,17 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @numAnio int, @numMes int;
+    DECLARE @numAnio int, @numMes int, @nomTipoGasto varchar(30);
 
-    SELECT @numAnio = numAnio, @numMes = numMes
+    SELECT @numAnio = numAnio, @numMes = numMes, @nomTipoGasto = nomTipoGasto
     FROM proceso.TMC_TIPO_GASTO
     WHERE ideTipoGasto = @ideTipoGasto AND flgEstado = 1;
 
     IF @numAnio IS NULL
         THROW 50103, 'El tipo de gasto indicado no existe o fue eliminado.', 1;
+
+    IF @nomTipoGasto IN ('Gasto de Personal', 'Gasto Operativo')
+        THROW 50105, 'Los reportes del costo labor usan este tipo de gasto por su nombre: no se puede eliminar.', 1;
 
     IF EXISTS (SELECT 1 FROM registro.TMC_PERIODO
                WHERE numAnio = @numAnio AND numMes = @numMes AND flgEstado = 2)

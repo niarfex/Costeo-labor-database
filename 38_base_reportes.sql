@@ -59,10 +59,12 @@ END
 GO
 
 /* ---------------------------------------------------------------------------
-   Fuentes de financiamiento del periodo: las categorias que quedaron en la
-   distribucion de la compensacion al procesarlo. "Categoria Desconocida" no
-   es una fuente: es la marca de los proyectos sin categoria, y sus montos
-   solo aparecen con el filtro "Todas".
+   Fuentes de financiamiento del periodo: las mismas que muestran los
+   reportes. Sobre la vista de reporte de la compensacion, cada proyecto
+   aporta su categoria y, si el catalogo de proyectos le fija otra fuente
+   (como 28E), tambien esa. PROINVERSION es la parte de la GIP del gasto
+   operativo. "Categoria Desconocida" no es una fuente: es la marca de los
+   proyectos sin categoria, y sus montos solo aparecen con el filtro "Todas".
    --------------------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE proceso.usp_Reporte_ListarFuentes
     @numAnio int,
@@ -71,15 +73,26 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT DISTINCT TRIM(dc.txtCategoria) AS codFuente
-    FROM proceso.TMD_DISTRIBUCION_COMPENSACION dc
-    JOIN registro.TMC_PERIODO p ON p.idePeriodo = dc.idePeriodo
-    WHERE p.numAnio = @numAnio
-      AND p.numMes = @numMes
-      AND dc.flgEstado = 1
-      AND NULLIF(TRIM(dc.txtCategoria), '') IS NOT NULL
-      AND dc.txtCategoria <> 'Categoria Desconocida'
-    ORDER BY codFuente;
+    DECLARE @idePeriodo bigint = (SELECT idePeriodo FROM registro.TMC_PERIODO
+                                  WHERE numAnio = @numAnio AND numMes = @numMes);
+
+    SELECT codFuente
+    FROM (
+        SELECT TRIM(dc.txtCategoria) AS codFuente
+        FROM proceso.VW_DISTRIBUCION_COMPENSACION_REPORTE dc
+        WHERE dc.idePeriodo = @idePeriodo
+        UNION
+        SELECT TRIM(pf.codFuente)
+        FROM proceso.VW_DISTRIBUCION_COMPENSACION_REPORTE dc
+        JOIN proceso.TMC_PROYECTO_FUENTE pf ON pf.codProyecto = dc.Proyecto AND pf.flgEstado = 1
+        WHERE dc.idePeriodo = @idePeriodo
+        UNION
+        SELECT 'PROINVERSION' WHERE @idePeriodo IS NOT NULL
+    ) f
+    WHERE NULLIF(codFuente, '') IS NOT NULL
+      AND codFuente <> 'Categoria Desconocida'
+    ORDER BY CASE codFuente WHEN 'FA' THEN 1 WHEN 'PAR' THEN 2 WHEN '28E' THEN 3 WHEN 'TUCARI' THEN 4
+                            WHEN 'TUQUIAR' THEN 5 WHEN 'PROINVERSION' THEN 7 ELSE 6 END, codFuente;
 END
 GO
 

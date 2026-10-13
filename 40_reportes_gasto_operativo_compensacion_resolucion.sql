@@ -617,6 +617,7 @@ GASTO_OPERATIVO_DEPARTAMENTO AS (
     WHERE @idePeriodo IS NOT NULL
     UNION ALL
     -- Lo que cada departamento no pudo repartir por falta de horas validadas.
+    -- Cualquier residuo, aun de centimos, para que la matriz cuadre con la incidencia.
     SELECT ''SIN DISTRIBUIR'', NULL, ''SIN DISTRIBUIR (FALTAN HORAS VALIDADAS)'',
            CAST(g.TOTAL * @porcGoDgo  / 100 - ISNULL(t.DGO, 0)  AS decimal(14,4)),
            CAST(g.TOTAL * @porcGoDip  / 100 - ISNULL(t.DIP, 0)  AS decimal(14,4)),
@@ -626,10 +627,10 @@ GASTO_OPERATIVO_DEPARTAMENTO AS (
     FROM TOTAL_GASTO_OPERATIVO g
     CROSS JOIN (SELECT SUM(DGO) AS DGO, SUM(DIP) AS DIP, SUM(DPCM) AS DPCM, SUM(RRCC) AS RRCC FROM GO_PIVOTE) t
     WHERE @idePeriodo IS NOT NULL
-      AND (ABS(g.TOTAL * @porcGoDgo / 100 - ISNULL(t.DGO, 0)) >= 0.01
-           OR ABS(g.TOTAL * @porcGoDip / 100 - ISNULL(t.DIP, 0)) >= 0.01
-           OR ABS(g.TOTAL * @porcGoDpcm / 100 - ISNULL(t.DPCM, 0)) >= 0.01
-           OR ABS(g.TOTAL * @porcGoRrcc / 100 - ISNULL(t.RRCC, 0)) >= 0.01)
+      AND (ABS(g.TOTAL * @porcGoDgo / 100 - ISNULL(t.DGO, 0)) >= 0.00005
+           OR ABS(g.TOTAL * @porcGoDip / 100 - ISNULL(t.DIP, 0)) >= 0.00005
+           OR ABS(g.TOTAL * @porcGoDpcm / 100 - ISNULL(t.DPCM, 0)) >= 0.00005
+           OR ABS(g.TOTAL * @porcGoRrcc / 100 - ISNULL(t.RRCC, 0)) >= 0.00005)
 ),
 
 /* HU-009 CA-02: el gasto operativo del periodo y los porcentajes de incidencia. */
