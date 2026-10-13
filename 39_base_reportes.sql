@@ -44,10 +44,9 @@ GO
 
 /* ---------------------------------------------------------------------------
    Fuentes de financiamiento del periodo: las mismas que muestran los
-   reportes. Sobre la vista de reporte de la compensacion, cada proyecto
-   aporta su categoria y, si el catalogo de proyectos le fija otra fuente
-   (como 28E), tambien esa. PROINVERSION es la parte de la GIP del gasto
-   operativo. "Categoria Desconocida" no es una fuente: es la marca de los
+   reportes: la categoria de cada proyecto (Categorizacion de proyectos) en
+   la vista de reporte de la compensacion. PROINVERSION es la parte de la GIP
+   del gasto operativo. "Categoria Desconocida" no es una fuente: es la marca de los
    proyectos sin categoria, y sus montos solo aparecen con el filtro "Todas".
    --------------------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE proceso.usp_Reporte_ListarFuentes
@@ -65,11 +64,7 @@ BEGIN
         SELECT TRIM(dc.txtCategoria) AS codFuente
         FROM proceso.VW_DISTRIBUCION_COMPENSACION_REPORTE dc
         WHERE dc.idePeriodo = @idePeriodo
-        UNION
-        SELECT TRIM(pf.codFuente)
-        FROM proceso.VW_DISTRIBUCION_COMPENSACION_REPORTE dc
-        JOIN proceso.TMC_PROYECTO_FUENTE pf ON pf.codProyecto = dc.Proyecto AND pf.flgEstado = 1
-        WHERE dc.idePeriodo = @idePeriodo
+
         UNION
         SELECT 'PROINVERSION' WHERE @idePeriodo IS NOT NULL
     ) f

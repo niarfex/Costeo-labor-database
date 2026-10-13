@@ -13,7 +13,11 @@
      RESOLUCION_COSTO_LABOR        HU-012: costo labor del mes por proyecto
                                    con la referencia de gastos de capital.
 
-   La HU-010 usa DISTRIBUCION_COMPENSACION, que ya existia. El resto del
+   La HU-010 usa DISTRIBUCION_COMPENSACION, que ya existia.
+
+   La fuente de cada proyecto sale de la Categorizacion de proyectos vigente
+   para el periodo (decision del 13/10), en todos los reportes del
+   procedimiento; ya no de proceso.TMC_PROYECTO_FUENTE. El resto del
    procedimiento es el del script 34, sin cambios.
 
    Idempotente.
@@ -325,10 +329,27 @@ EMPLEADOS AS (
     WHERE @idePeriodo IS NOT NULL
 ),
 
+-- Fuente de cada proyecto: la Categorizacion de proyectos (script 37) vigente
+-- para el periodo, la misma que usa el procesamiento: la del periodo o la del
+-- ultimo anterior que tenga; sin ninguna anterior, la mas antigua. Antes salia
+-- de proceso.TMC_PROYECTO_FUENTE, que ya no se usa (decision del 13/10).
+CATEGORIZACION_VIGENTE AS (
+    SELECT COALESCE(
+        (SELECT TOP (1) numAnio * 100 + numMes FROM proceso.TMC_CATEGORIA_PROYECTO
+         WHERE flgEstado = 1 AND numAnio * 100 + numMes <= @numAnio * 100 + @numMes
+         ORDER BY numAnio DESC, numMes DESC),
+        (SELECT TOP (1) numAnio * 100 + numMes FROM proceso.TMC_CATEGORIA_PROYECTO
+         WHERE flgEstado = 1
+         ORDER BY numAnio, numMes)) AS PERIODO
+),
+
 PROYECTO_FUENTE AS (
-    SELECT codProyecto AS codClave, codProyecto, codFuente, nomProyecto
-    FROM proceso.TMC_PROYECTO_FUENTE
-    WHERE flgEstado = 1
+    SELECT d.codProyecto AS codClave, d.codProyecto, c.codCategoria AS codFuente, d.nomProyecto
+    FROM proceso.TMD_CATEGORIA_PROYECTO_DETALLE d
+    JOIN proceso.TMC_CATEGORIA_PROYECTO c
+      ON c.ideCategoriaProyecto = d.ideCategoriaProyecto AND c.flgEstado = 1
+    CROSS JOIN CATEGORIZACION_VIGENTE v
+    WHERE d.flgEstado = 1 AND d.numAnio * 100 + d.numMes = v.PERIODO
 ),
 
 -- Correcciones 27/09: las columnas del HH por proyecto son los proyectos de la
