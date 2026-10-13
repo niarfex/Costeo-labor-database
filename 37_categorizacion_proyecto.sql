@@ -1,4 +1,4 @@
-/* =========================================================================
+﻿/* =========================================================================
    37 - Categorizacion de proyectos
 
    El procesamiento clasificaba cada proyecto de la distribucion de la

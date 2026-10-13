@@ -132,6 +132,22 @@ WHERE codOpcion = 'REP_MANO_OBRA' AND flgEstado <> 0;
 GO
 
 /* ---------------------------------------------------------------------------
+   Los scripts 36 y 37 se guardaron sin BOM y, corridos con sqlcmd, dejaron
+   las tildes de sus opciones de menu como dos caracteres. Se corrigen aqui
+   para las bases donde ya se aplicaron.
+   --------------------------------------------------------------------------- */
+UPDATE seguridad.TG_OPCION
+SET nomOpcion = 'Actualización de estado de proyectos', fecActualizacion = GETDATE(),
+    txtUsuarioActualizacion = 'SYSTEM_COSTOLABOR'
+WHERE codOpcion = 'ESTADO_PROYECTOS' AND nomOpcion <> 'Actualización de estado de proyectos';
+
+UPDATE seguridad.TG_OPCION
+SET nomOpcion = 'Categorización de proyectos', fecActualizacion = GETDATE(),
+    txtUsuarioActualizacion = 'SYSTEM_COSTOLABOR'
+WHERE codOpcion = 'CATEGORIZACION_PROYECTOS' AND nomOpcion <> 'Categorización de proyectos';
+GO
+
+/* ---------------------------------------------------------------------------
    Perfiles de cada reporte. Solo agrega las asignaciones que nunca
    existieron: si el administrador quito una desde Perfiles y permisos, volver
    a correr el script no la repone.

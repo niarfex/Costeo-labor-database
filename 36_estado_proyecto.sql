@@ -1,4 +1,4 @@
-/* =========================================================================
+﻿/* =========================================================================
    36 - Actualizacion de estado de proyectos
 
    El perfil Contador indica por periodo que proyectos estan activos para
