@@ -80,6 +80,29 @@ WHERE vd.period = '202501'
   )
   AND vd.afe <> '000000505049'
   AND vd.CostCenter NOT IN ('0216');
+  ----------------
+  ----------------
+  ----------------
+  SELECT DISTINCT    
+    pm.Persona AS idePersona,
+    TRIM(pm.NombreCompleto) AS txtNombreCompleto,
+
+    pm.Documento,
+    hrdiv.DescripcionLarga AS Area,
+    hrdep.Descripcion AS Departamento,
+    hre.Descripcion AS Cargo
+
+FROM voucherdetail AS vd
+INNER JOIN voucherheader AS vh  ON vh.period = vd.period AND vh.voucherno = vd.voucherno
+LEFT JOIN accountmst AS am  ON am.account = vd.Account
+LEFT JOIN PersonaMast AS pm  ON pm.Persona = vd.vendor
+LEFT JOIN EmpleadoMast AS em  ON em.Empleado = pm.Persona
+LEFT JOIN HR_PuestoEmpresa AS hre  ON hre.CodigoPuesto = em.CodigoCargo
+LEFT JOIN HR_Departamento AS hrdep  ON hrdep.Departamento = em.DepartamentoOperacional
+LEFT JOIN HR_Division AS hrdiv  ON hrdiv.Division = em.Division
+
+WHERE vd.period = '202501'
+
 
 -- (2°) --Aplicar un Trim a account,CostCenter, CentroCostos, Departamento (En general a todos los textos para asegurar que los datos no tienen espacios vacios demás)
 
@@ -342,6 +365,9 @@ SELECT vdet.period, TRIM(ACREF.DescripcionLocal) AS DescripcionLocal, TRIM(vDet.
     AND vDet.afe <> '000000000074' 
     AND vh.status NOT LIKE '%AN%' 
     AND AcRef.DescripcionLocal NOT LIKE '%PRESUPUESTO OPERATIVO%'
+
+    SELECT TRIM(afe) AS CODIGO,TRIM(englishname) AS PROYECTO 
+    FROM BD_SPRING.dbo.afemst ORDER BY englishname
 
 -- En la tabla BD_DistribucionCompensa categoriza los valores segúnn la celda proyecto
 /*
