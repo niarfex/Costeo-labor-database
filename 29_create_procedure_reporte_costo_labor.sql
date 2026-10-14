@@ -24,7 +24,7 @@
                                       por fuente y proyecto (pestania 5)
 
    Ningun reporte trae filas ni columnas de totales: los totales los arma el
-   Excel con formulas de suma (pedido de Efrain, 15/09/2026).
+   Excel con formulas de suma.
 
    Diferencias con el script original:
      - Lee de proceso.TMD_GASTO_PERSONAL y proceso.TMD_DISTRIBUCION_COMPENSACION,
