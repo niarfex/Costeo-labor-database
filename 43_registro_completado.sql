@@ -21,6 +21,7 @@
      50110  el periodo esta cerrado
      50111  la opcion no exige la marca de registros completados
      50112  falta indicar si los registros estan completados
+     50113  el usuario no tiene la opcion en su menu
 
    Idempotente.
    ========================================================================= */
@@ -154,6 +155,16 @@ BEGIN
 
     IF @flgCompletado IS NULL
         THROW 50112, 'Indique si los registros del periodo estan completados.', 1;
+
+    -- Cada opcion la marca quien la tiene en su menu (el Contador las suyas,
+    -- Tesoreria la rentabilidad).
+    IF NOT EXISTS (SELECT 1
+                   FROM seguridad.TMD_PERFIL_USUARIO pu
+                   INNER JOIN seguridad.TMC_PERFIL p ON p.idePerfil = pu.idePerfil AND p.flgEstado = 1
+                   INNER JOIN seguridad.TMD_PERFIL_OPCION po ON po.idePerfil = p.idePerfil AND po.flgEstado = 1
+                   INNER JOIN seguridad.TG_OPCION o ON o.ideOpcion = po.ideOpcion AND o.flgEstado = 1
+                   WHERE pu.txtUsuario = @txtUsuario AND pu.flgEstado = 1 AND o.codOpcion = @codOpcion)
+        THROW 50113, 'No tiene acceso a la opcion: no puede marcar sus registros completados.', 1;
 
     SET XACT_ABORT ON;
     BEGIN TRANSACTION;
