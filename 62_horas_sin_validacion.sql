@@ -1096,7 +1096,7 @@ FROM PROYECTOS_HH p;';
             @porcCompensacion = @porcCompensacion,
             @porcEscDgo = @porcEscDgo, @porcEscDip = @porcEscDip, @porcEscDpcm = @porcEscDpcm, @porcEscRrcc = @porcEscRrcc,
             @porcGoDgo = @porcGoDgo, @porcGoDip = @porcGoDip, @porcGoDpcm = @porcGoDpcm, @porcGoRrcc = @porcGoRrcc,
-            @horasReferencia = @horasReferencia,
+            @horasReferencia = @horasReferencia, @flgSinValidacion = @flgSinValidacion,
             @columnas = @columnas OUTPUT, @columnasSelect = @columnasSelect OUTPUT;
     END
 
