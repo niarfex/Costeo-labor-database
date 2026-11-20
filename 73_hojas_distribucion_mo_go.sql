@@ -4,11 +4,15 @@
 
    Observacion 9: el libro del procesamiento lleva, como hojas de revision,
    las del Excel del contador "Distribucion MO (Calculo)", "Distribucion MO
-   (Resumen)" y "Distribucion GO". Salen de los mismos CTE del calculo, una
-   fila por proyecto de la distribucion de compensacion, mas PROINVERSION
-   (Linea Core 1) y SIN DISTRIBUIR (lo que no llego a ningun proyecto):
+   (Resumen)" y "Distribucion GO". Salen de los mismos CTE del calculo, mas
+   PROINVERSION (Linea Core 1) y SIN DISTRIBUIR (lo que no llego a ningun
+   proyecto). Como la hoja "Proyectos" del contador, listan todos los
+   proyectos de la Categorizacion de proyectos vigente, aunque esten en cero,
+   y los de la distribucion de compensacion que no esten categorizados (los
+   unicos que pueden tener montos: las horas solo cuentan en ellos).
 
-   - DISTRIBUCION_MO_CALCULO: los cuatro bloques del contador lado a lado.
+   - DISTRIBUCION_MO_CALCULO: una fila por proyecto con las columnas de los
+     cuatro bloques del contador; el backend los arma apilados, como su hoja.
      GO_*: mano de obra de la Gerencia de Operaciones por departamento (GO_GO
      es la del gerente y el personal de la gerencia); COEF_*: coeficiente de
      cada departamento (el del jefe) y su promedio, que reparte al Gerente
@@ -30,6 +34,9 @@
    calcular en cada referencia, se calculan una vez en tablas temporales
    (como la compensacion en el script 68). Los resultados no cambian y
    TOTAL_COSTO_LABOR baja de unos 8 a unos 4 segundos (enero 2025, base local).
+
+   COEFICIENTES: el coeficiente con seis decimales, sobre las horas sin
+   redondear (antes, cuatro sobre las horas redondeadas a dos).
 
    Requiere el script 72.
 
@@ -945,8 +952,24 @@ GASTO_OPERATIVO_DEPARTAMENTO AS (
 /* ------------------------------------------------------------------------
    Script 73: hojas de trabajo del contador. Los montos de los CTE del
    calculo, una columna por departamento y bloque, con los proyectos de la
-   distribucion de compensacion, PROINVERSION y SIN DISTRIBUIR.
+   categorizacion y de la compensacion, PROINVERSION y SIN DISTRIBUIR.
    ------------------------------------------------------------------------ */
+-- La lista de proyectos de las tres hojas, como la hoja "Proyectos" del
+-- contador: la categorizacion vigente, aunque no tenga montos, y los de la
+-- compensacion sin categorizar.
+PROYECTOS_DISTRIBUCION AS (
+    SELECT codClave, COALESCE(FUENTE, ''SIN FUENTE'') AS FUENTE,
+           CONCAT(CASE WHEN COUNT(*) OVER (PARTITION BY RIGHT(codClave, 6)) > 1
+                       THEN codClave ELSE RIGHT(codClave, 6) END,
+                  ''-'', nomProyecto) AS PROYECTOS
+    FROM (
+        SELECT codClave, codFuente AS FUENTE, nomProyecto FROM PROYECTO_FUENTE
+        UNION ALL
+        SELECT codClave, FUENTE, nomProyecto FROM PROYECTOS_COMPENSACION
+        WHERE codClave NOT IN (SELECT codClave FROM PROYECTO_FUENTE)
+    ) p
+),
+
 DISTRIBUCION_MO_DETALLE AS (
     SELECT codClave, CONCAT(''GO_'', codDepartamento) AS COLUMNA, MONTO FROM MO_OPERACIONES_DEPARTAMENTO
     UNION ALL SELECT codClave, CONCAT(''COEF_'', codDepartamento), PROPORCION FROM PROPORCION_DEPARTAMENTO
@@ -990,11 +1013,7 @@ DISTRIBUCION_MO_RESIDUO AS (
 ),
 
 DISTRIBUCION_MO_BASE AS (
-    SELECT COALESCE(pf.codFuente, cp.FUENTE, ''SIN FUENTE'') AS FUENTE,
-           cp.codClave AS CODIGO,
-           CONCAT(CASE WHEN COUNT(*) OVER (PARTITION BY RIGHT(cp.codClave, 6)) > 1
-                       THEN cp.codClave ELSE RIGHT(cp.codClave, 6) END,
-                  ''-'', COALESCE(pf.nomProyecto, cp.nomProyecto)) AS PROYECTOS,
+    SELECT p.FUENTE, p.codClave AS CODIGO, p.PROYECTOS,
            ISNULL(v.GO_DGO, 0) AS GO_DGO, ISNULL(v.GO_DIP, 0) AS GO_DIP, ISNULL(v.GO_DPCM, 0) AS GO_DPCM,
            ISNULL(v.GO_RRCC, 0) AS GO_RRCC, ISNULL(v.GO_GO, 0) AS GO_GO,
            ISNULL(v.COEF_DGO, 0) AS COEF_DGO, ISNULL(v.COEF_DIP, 0) AS COEF_DIP,
@@ -1003,9 +1022,8 @@ DISTRIBUCION_MO_BASE AS (
            ISNULL(v.ESC_DGO, 0) AS ESC_DGO, ISNULL(v.ESC_DIP, 0) AS ESC_DIP,
            ISNULL(v.ESC_DPCM, 0) AS ESC_DPCM, ISNULL(v.ESC_RRCC, 0) AS ESC_RRCC,
            CAST(0 AS float) AS ESC_GIP, CAST(0 AS float) AS GIP
-    FROM PROYECTOS_COMPENSACION cp
-    LEFT JOIN DISTRIBUCION_MO_PIVOTE v ON v.codClave = cp.codClave
-    LEFT JOIN PROYECTO_FUENTE pf ON pf.codClave = cp.codClave
+    FROM PROYECTOS_DISTRIBUCION p
+    LEFT JOIN DISTRIBUCION_MO_PIVOTE v ON v.codClave = p.codClave
     WHERE @idePeriodo IS NOT NULL
     UNION ALL
     -- Linea Core 1: el personal GIP y las partes Core 1 del Gerente General y del apoyo.
@@ -1078,10 +1096,23 @@ DISTRIBUCION_MO_RESUMEN AS (
     FROM DISTRIBUCION_MO_CALCULO
 ),
 
--- "Distribucion GO": el gasto operativo por departamento (HU-009).
+-- "Distribucion GO": el gasto operativo por departamento (HU-009), con la
+-- lista de proyectos de las otras dos hojas; PROINVERSION y SIN DISTRIBUIR,
+-- los de GASTO_OPERATIVO_DEPARTAMENTO.
 DISTRIBUCION_GO AS (
+    SELECT p.FUENTE, p.codClave AS CODIGO, p.PROYECTOS,
+           CAST(ISNULL(v.DGO, 0)  AS decimal(14,4)) AS DGO,
+           CAST(ISNULL(v.DIP, 0)  AS decimal(14,4)) AS DIP,
+           CAST(ISNULL(v.DPCM, 0) AS decimal(14,4)) AS DPCM,
+           CAST(ISNULL(v.RRCC, 0) AS decimal(14,4)) AS RRCC,
+           CAST(0 AS decimal(14,4)) AS GIP
+    FROM PROYECTOS_DISTRIBUCION p
+    LEFT JOIN GO_PIVOTE v ON v.codClave = p.codClave
+    WHERE @idePeriodo IS NOT NULL
+    UNION ALL
     SELECT FUENTE, CODIGO, PROYECTOS, DGO, DIP, DPCM, RRCC, GIP
     FROM GASTO_OPERATIVO_DEPARTAMENTO
+    WHERE CODIGO IS NULL
 ),
 
 /* HU-009 CA-02: el gasto operativo del periodo y los porcentajes de incidencia. */
@@ -1125,7 +1156,8 @@ HH_BASE AS (
     SELECT e.codDepartamento AS DEPARTAMENTO, e.codNivel AS NIVEL, e.ideEmpleado AS CODIGO,
            e.nomEmpleado AS COLABORADOR, e.Cargo AS PUESTO,
            ph.PROYECTO, ph.ORDEN_FUENTE,
-           CAST(h.HORAS AS decimal(18,2)) AS HORAS
+           CAST(h.HORAS AS decimal(18,2)) AS HORAS,
+           h.HORAS AS HORAS_CALCULO
     FROM EMPLEADOS e
     LEFT JOIN HORAS_COLABORADOR h ON h.ideEmpleado = e.ideEmpleado
     LEFT JOIN PROYECTOS_HH ph ON ph.codClave = h.codClave
@@ -1134,9 +1166,10 @@ HH_BASE AS (
 -- Script 64. El coeficiente de la hoja "HH por proyecto 1" del contador:
 -- que parte de las horas del colaborador se fue a cada proyecto. Cada fila
 -- suma 1. Se expone para que el usuario vea de donde sale el reparto.
+-- Script 73: con seis decimales y sobre las horas sin redondear.
 COEF_BASE AS (
     SELECT DEPARTAMENTO, NIVEL, CODIGO, COLABORADOR, PUESTO, PROYECTO, ORDEN_FUENTE,
-           CAST(HORAS / NULLIF(SUM(HORAS) OVER (PARTITION BY CODIGO), 0) AS decimal(18,4)) AS COEFICIENTE
+           CAST(HORAS_CALCULO / NULLIF(SUM(HORAS_CALCULO) OVER (PARTITION BY CODIGO), 0) AS decimal(18,6)) AS COEFICIENTE
     FROM HH_BASE
 ),
 
