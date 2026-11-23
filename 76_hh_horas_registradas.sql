@@ -1,5 +1,5 @@
 /* =========================================================================
-   75 - HH_POR_PROYECTO con las horas registradas del subordinado
+   76 - HH_POR_PROYECTO con las horas registradas del subordinado
 
    Observacion del contador (23/11): en la hoja HH_POR_PROYECTO del Excel del
    procesamiento el subordinado debe figurar con las horas que registro, no
@@ -1137,7 +1137,7 @@ HH_BASE AS (
     SELECT e.codDepartamento AS DEPARTAMENTO, e.codNivel AS NIVEL, e.ideEmpleado AS CODIGO,
            e.nomEmpleado AS COLABORADOR, e.Cargo AS PUESTO,
            ph.PROYECTO, ph.ORDEN_FUENTE,
-           -- Script 75: el subordinado muestra las horas que registro, no las
+           -- Script 76: el subordinado muestra las horas que registro, no las
            -- ajustadas a las de referencia. El coeficiente no cambia: las
            -- ajustadas son las registradas por un mismo factor.
            CAST(COALESCE(hv.HORAS, h.HORAS) AS decimal(18,2)) AS HORAS,
