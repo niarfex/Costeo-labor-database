@@ -46,6 +46,10 @@ GO
    --------------------------------------------------------------------------- */
 DECLARE @usuario varchar(100) = 'SYSTEM_COSTOLABOR';
 
+-- Si el INSERT falla, se deshace tambien el corrimiento del orden: al volver a
+-- ejecutar el script las opciones no bajan dos veces.
+SET XACT_ABORT ON;
+
 IF NOT EXISTS (SELECT 1 FROM seguridad.TG_OPCION WHERE codOpcion = 'COSTO_PERIODOS')
 BEGIN
     BEGIN TRANSACTION;
